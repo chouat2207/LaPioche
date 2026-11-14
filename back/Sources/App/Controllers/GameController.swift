@@ -71,6 +71,7 @@ struct GameController: RouteCollection {
         return game
     }
     
+    @Sendable
     func delete(req: Request) async throws -> HTTPStatus {
         //Récupérer le jeu existant
         let game = try await findGame(req)
