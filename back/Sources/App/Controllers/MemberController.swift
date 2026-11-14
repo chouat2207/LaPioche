@@ -74,5 +74,29 @@ struct MemberController: RouteCollection {
         //Retourner le membre modifié
         return member.toDTO()
     }
+    @Sendable
+    func delete(req: Request) async throws -> HTTPStatus {
+        //Vérifier l'identifiant
+        guard let memberID = req.parameters.get("memberID", as: UUID.self) else {
+            throw Abort(.badRequest, reason: "Invalid member id")
+        }
+        //Vérifier que le membre existe
+        guard let member = try await Member.find(memberID, on: req.db) else {
+            throw Abort(.notFound, reason: "Member not found")
+        }
+        //Vérifier si le membre possède des emprunts
+        let loanCount = try await Loan.query(on: req.db)
+            .filter(\.$member.$id == memberID)
+            .count()
+
+        guard loanCount == 0 else {
+            throw Abort(.conflict, reason: "Cannot delete a member with loan history")
+        }
+        //Supprimer le membre
+        try await member.delete(on: req.db)
+        //Retourner HTTP 204
+        return .noContent
+    }
+    
 
 }
