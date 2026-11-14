@@ -8,6 +8,7 @@ struct GameController: RouteCollection {
         games.post(use: create)
         games.get(":gameID", use: show)
         games.put(":gameID", use: update)
+        games.delete(":gameID", use: delete)
     }
 
     @Sendable
@@ -68,6 +69,21 @@ struct GameController: RouteCollection {
             throw Abort(.notFound, reason: "Game not found")
         }
         return game
+    }
+    
+    func delete(req: Request) async throws -> HTTPStatus {
+        //Récupérer le jeu existant
+        let game = try await findGame(req)
+        //Vérifier si le jeu possède des emprunts
+        let loans = try await Loan.query(on: req.db)
+            .filter(\.$game.$id == game.requireID())
+            .all()
+        //Refuser la suppression si un emprunt existe
+        guard loans.isEmpty else {
+            throw Abort(.conflict, reason: "Cannot delete a game with loan history")
+        }
+        try await game.delete(on: req.db)
+        return .noContent
     }
     
 }
