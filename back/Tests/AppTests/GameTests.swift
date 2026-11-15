@@ -106,4 +106,77 @@ final class GameTests: XCTestCase {
             })
         }
     }
+    func testUpdateGameReturnsUpdatedGame() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let gameID = try XCTUnwrap(game.id)
+
+            try await app.test(.PUT, "games/\(gameID)", beforeRequest: { req in
+                try req.content.encode(CreateGameDTO(
+                    title: "Catan Updated",
+                    minPlayers: 2,
+                    maxPlayers: 5,
+                    durationMinutes: 60
+                ))
+            }, afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let updatedGame = try res.content.decode(GameDTO.self)
+                XCTAssertEqual(updatedGame.title, "Catan Updated")
+                XCTAssertEqual(updatedGame.minPlayers, 2)
+                XCTAssertEqual(updatedGame.maxPlayers, 5)
+                XCTAssertEqual(updatedGame.durationMinutes, 60)
+            })
+        }
+    }
+    func testUpdateUnknownGameReturnsNotFound() async throws {
+        try await withApp { app in
+            try await app.test(.PUT, "games/\(UUID())", beforeRequest: { req in
+                try req.content.encode(CreateGameDTO(
+                    title: "Catan",
+                    minPlayers: 2,
+                    maxPlayers: 4,
+                    durationMinutes: 90
+                ))
+            }, afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            })
+        }
+    }
+    func testDeleteGameReturnsNoContent() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let gameID = try XCTUnwrap(game.id)
+
+            try await app.test(.DELETE, "games/\(gameID)") { res async throws in
+                XCTAssertEqual(res.status, .noContent)
+            }
+
+            try await app.test(.GET, "games/\(gameID)") { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        }
+    }
+    func testDeleteGameWithLoanHistoryReturnsConflict() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let member = try await createMember(app)
+            let gameID = try XCTUnwrap(game.id)
+
+            // Créer un emprunt directement
+            let loan = Loan(
+                gameID: gameID,
+                memberID: try XCTUnwrap(member.id),
+                borrowedAt: Date(),
+                dueAt: try Loan.dueDate(from: Date())
+            )
+
+            try await loan.save(on: app.db)
+
+            // Vérifier que la suppression est refusée
+            try await app.test(.DELETE, "games/\(gameID)") { res async throws in
+                XCTAssertEqual(res.status, .conflict)
+            }
+        }
+    }
 }

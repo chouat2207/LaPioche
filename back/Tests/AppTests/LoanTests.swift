@@ -148,4 +148,58 @@ final class LoanTests: XCTestCase {
             }
         }
     }
+    
+    
+    func testReturnLoanReturnsUpdatedLoan() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let member = try await createMember(app)
+
+            try await borrow(
+                app,
+                gameID: try XCTUnwrap(game.id),
+                memberID: try XCTUnwrap(member.id)
+            ) { res async throws in
+                XCTAssertEqual(res.status, .created)
+
+                let createdLoan = try res.content.decode(LoanDTO.self)
+                let loanID = try XCTUnwrap(createdLoan.id)
+
+                try await app.test(
+                    .POST,
+                    "loans/\(loanID)/return"
+                ) { returnRes async throws in
+                    XCTAssertEqual(returnRes.status, .ok)
+
+                    let returnedLoan = try returnRes.content.decode(LoanDTO.self)
+
+                    XCTAssertEqual(returnedLoan.id, loanID)
+                    XCTAssertNotNil(returnedLoan.returnedAt)
+                }
+            }
+        }
+    }
+    func testReturnAlreadyReturnedLoanReturnsConflict() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let member = try await createMember(app)
+
+            try await borrow(
+                app,
+                gameID: try XCTUnwrap(game.id),
+                memberID: try XCTUnwrap(member.id)
+            ) { res async throws in
+                let createdLoan = try res.content.decode(LoanDTO.self)
+                let loanID = try XCTUnwrap(createdLoan.id)
+
+                try await app.test(.POST, "loans/\(loanID)/return") { firstRes async throws in
+                    XCTAssertEqual(firstRes.status, .ok)
+                }
+
+                try await app.test(.POST, "loans/\(loanID)/return") { secondRes async throws in
+                    XCTAssertEqual(secondRes.status, .conflict)
+                }
+            }
+        }
+    }
 }
