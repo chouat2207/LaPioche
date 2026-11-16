@@ -202,4 +202,42 @@ final class LoanTests: XCTestCase {
             }
         }
     }
+    func testReturnUnknownLoanReturnsNotFound() async throws {
+        try await withApp { app in
+            try await app.test(
+                .POST,
+                "loans/\(UUID())/return"
+            ) { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            }
+        }
+    }
+    func testGameBecomesAvailableAfterLoanIsReturned() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let member = try await createMember(app)
+
+            let gameID = try XCTUnwrap(game.id)
+
+            try await borrow(
+                app,
+                gameID: gameID,
+                memberID: try XCTUnwrap(member.id)
+            ) { res async throws in
+                let createdLoan = try res.content.decode(LoanDTO.self)
+                let loanID = try XCTUnwrap(createdLoan.id)
+
+                try await app.test(.POST, "loans/\(loanID)/return") { returnRes async throws in
+                    XCTAssertEqual(returnRes.status, .ok)
+                }
+
+                try await app.test(.GET, "games/\(gameID)") { gameRes async throws in
+                    XCTAssertEqual(gameRes.status, .ok)
+
+                    let updatedGame = try gameRes.content.decode(GameDTO.self)
+                    XCTAssertTrue(updatedGame.isAvailable)
+                }
+            }
+        }
+    }
 }

@@ -179,4 +179,117 @@ final class GameTests: XCTestCase {
             }
         }
     }
+    
+    func testSearchGamesByTitleIsCaseInsensitive() async throws {
+        try await withApp { app in
+            _ = try await createGame(app, title: "Catan")
+            _ = try await createGame(app, title: "Dixit")
+
+            try await app.test(.GET, "games?q=cAtAn") { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                XCTAssertEqual(games.count, 1)
+                XCTAssertEqual(games.first?.title, "Catan")
+            }
+        }
+    }
+
+    func testFilterGamesByPlayers() async throws {
+        try await withApp { app in
+            _ = try await createGame(app, title: "Catan")
+            _ = try await createGame(app, title: "Dixit")
+
+            try await app.test(.GET, "games?players=4") { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                for game in games {
+                    XCTAssertLessThanOrEqual(game.minPlayers, 4)
+                    XCTAssertGreaterThanOrEqual(game.maxPlayers, 4)
+                }
+            }
+        }
+    }
+
+    func testFilterGamesByMaxDuration() async throws {
+        try await withApp { app in
+            _ = try await createGame(app, title: "Catan")
+
+            try await app.test(.GET, "games?maxDuration=60") { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                for game in games {
+                    XCTAssertLessThanOrEqual(game.durationMinutes, 60)
+                }
+            }
+        }
+    }
+
+    func testSearchGamesWithCombinedFilters() async throws {
+        try await withApp { app in
+            _ = try await createGame(app, title: "Catan")
+
+            try await app.test(
+                .GET,
+                "games?q=cat&players=4&maxDuration=60"
+            ) { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                for game in games {
+                    XCTAssertTrue(game.title.localizedCaseInsensitiveContains("cat"))
+                    XCTAssertLessThanOrEqual(game.minPlayers, 4)
+                    XCTAssertGreaterThanOrEqual(game.maxPlayers, 4)
+                    XCTAssertLessThanOrEqual(game.durationMinutes, 60)
+                }
+            }
+        }
+    }
+    
+    func testSearchGamesWithZeroPlayersReturnsBadRequest() async throws {
+        try await withApp { app in
+            try await app.test(.GET, "games?players=0") { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        }
+    }
+
+    func testSearchGamesWithNegativePlayersReturnsBadRequest() async throws {
+        try await withApp { app in
+            try await app.test(.GET, "games?players=-2") { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        }
+    }
+
+
+    func testSearchGamesWithInvalidPlayersReturnsBadRequest() async throws {
+        try await withApp { app in
+            try await app.test(.GET, "games?players=abc") { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        }
+    }
+
+    func testSearchGamesWithZeroMaxDurationReturnsBadRequest() async throws {
+        try await withApp { app in
+            try await app.test(.GET, "games?maxDuration=0") { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        }
+    }
+
+    func testSearchGamesWithNegativeMaxDurationReturnsBadRequest() async throws {
+        try await withApp { app in
+            try await app.test(.GET, "games?maxDuration=-10") { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        }
+    }
 }
