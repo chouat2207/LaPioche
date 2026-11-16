@@ -1,6 +1,13 @@
 import Fluent
 import Vapor
 
+
+struct GameSearchQuery: Content {
+    let q: String?
+    let players: Int?
+    let maxDuration: Int?
+}
+
 struct GameController: RouteCollection {
     func boot(routes: any RoutesBuilder) throws {
         let games = routes.grouped("games")
@@ -11,14 +18,56 @@ struct GameController: RouteCollection {
         games.delete(":gameID", use: delete)
     }
 
+//    @Sendable
+//    func index(req: Request) async throws -> [GameDTO] {
+//        let games = try await Game.query(on: req.db)
+//            .with(\.$loans)
+//            .all()
+//        return games.map { $0.toDTO() }
+//    }
     @Sendable
     func index(req: Request) async throws -> [GameDTO] {
-        let games = try await Game.query(on: req.db)
-            .with(\.$loans)
-            .all()
-        return games.map { $0.toDTO() }
-    }
 
+        let filters = try req.query.decode(GameSearchQuery.self)
+
+        // Vérifier que les nombres sont positifs
+        if let players = filters.players, players <= 0 {
+            throw Abort(.badRequest, reason: "Players must be a positive integer")
+        }
+
+        if let maxDuration = filters.maxDuration, maxDuration <= 0 {
+            throw Abort(.badRequest, reason: "Max duration must be a positive integer")
+        }
+
+        // Construire la recherche
+        let gamesQuery = Game.query(on: req.db)
+            .with(\.$loans)
+
+        if let players = filters.players {
+            gamesQuery
+                .filter(\.$minPlayers <= players)
+                .filter(\.$maxPlayers >= players)
+        }
+
+        if let maxDuration = filters.maxDuration {
+            gamesQuery.filter(\.$durationMinutes <= maxDuration)
+        }
+
+        let games = try await gamesQuery.all()
+
+        // Recherche du titre sans tenir compte des majuscules
+        let filteredGames = games.filter { game in
+            guard let search = filters.q?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !search.isEmpty else {
+                return true
+            }
+
+            return game.title.localizedCaseInsensitiveContains(search)
+        }
+
+        return filteredGames.map { $0.toDTO() }
+    }
     @Sendable
     func create(req: Request) async throws -> Response {
         try CreateGameDTO.validate(content: req)
