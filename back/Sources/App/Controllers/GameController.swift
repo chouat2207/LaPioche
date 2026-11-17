@@ -6,6 +6,7 @@ struct GameSearchQuery: Content {
     let q: String?
     let players: Int?
     let maxDuration: Int?
+    let available: String?
 }
 
 struct GameController: RouteCollection {
@@ -38,7 +39,17 @@ struct GameController: RouteCollection {
         if let maxDuration = filters.maxDuration, maxDuration <= 0 {
             throw Abort(.badRequest, reason: "Max duration must be a positive integer")
         }
+        let availability: Bool?
 
+        if let value = filters.available {
+            guard value == "true" || value == "false" else {
+                throw Abort(.badRequest, reason: "Available must be true or false")
+            }
+
+            availability = value == "true"
+        } else {
+            availability = nil
+        }
         // Construire la recherche
         let gamesQuery = Game.query(on: req.db)
             .with(\.$loans)
@@ -55,15 +66,25 @@ struct GameController: RouteCollection {
 
         let games = try await gamesQuery.all()
 
-        // Recherche du titre sans tenir compte des majuscules
         let filteredGames = games.filter { game in
-            guard let search = filters.q?
+
+            let matchesTitle: Bool
+            if let search = filters.q?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !search.isEmpty else {
-                return true
+               !search.isEmpty {
+                matchesTitle = game.title.localizedCaseInsensitiveContains(search)
+            } else {
+                matchesTitle = true
             }
 
-            return game.title.localizedCaseInsensitiveContains(search)
+            let matchesAvailability: Bool
+            if let availability {
+                matchesAvailability = game.isAvailable == availability
+            } else {
+                matchesAvailability = true
+            }
+
+            return matchesTitle && matchesAvailability
         }
 
         return filteredGames.map { $0.toDTO() }
