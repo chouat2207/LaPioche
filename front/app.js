@@ -89,8 +89,8 @@ window.addEventListener("hashchange", refresh);
 
 // --- Jeux ------------------------------------------------------------------
 
-async function loadGames() {
-  const games = await api.listGames();
+async function loadGames(filters = {}) {
+  const games = await api.listGames(filters);
   $("#games-empty").hidden = games.length > 0;
   $("#games-list").replaceChildren(...games.map(gameCard));
 }
@@ -113,13 +113,13 @@ function gameCard(game) {
     ? el("span", { class: "badge ok" }, "Disponible")
     : el("span", { class: "badge busy" }, "Emprunté");
 
- const actions = el("div", { class: "actions" });
+  const actions = el("div", { class: "actions" });
 
-actions.append(button("Modifier", () => openEditGameDialog(game)));
-actions.append(button("Supprimer", () => deleteGame(game)));
-if (game.isAvailable) {
-  actions.append(button("Emprunter", () => openBorrowDialog(game), "primary"));
-}
+  actions.append(button("Modifier", () => openEditGameDialog(game)));
+  actions.append(button("Supprimer", () => deleteGame(game)));
+  if (game.isAvailable) {
+    actions.append(button("Emprunter", () => openBorrowDialog(game), "primary"));
+  }
   return el(
     "li",
     { class: "card" },
@@ -199,6 +199,71 @@ async function loadMembers() {
   $("#members-empty").hidden = members.length > 0;
   $("#members-list").replaceChildren(...members.map(memberRow));
 }
+
+async function showMemberLoans(member) {
+  await run(async () => {
+    const loans = await api.listMemberLoans(member.id);
+    const games = await api.listGames();
+
+    const activeLoans = loans.filter((loan) => !loan.returnedAt);
+
+    if (activeLoans.length === 0) {
+      toast(`${member.name} n'a aucun emprunt en cours.`);
+      return;
+    }
+
+    const dialog = el("dialog", { class: "loans-dialog" });
+
+    const content = el(
+      "div",
+      {},
+      el("h2", {}, `Emprunts de ${member.name}`)
+    );
+
+    for (const loan of activeLoans) {
+      const game = games.find((item) => item.id === loan.gameID);
+      const title = game ? game.title : "Jeu inconnu";
+
+      const returnButton = button("Retourner", async () => {
+        await run(async () => {
+          await api.returnLoan(loan.id);
+          dialog.close();
+          dialog.remove();
+
+          toast(`« ${title} » a été retourné.`);
+          await refresh();
+          await showMemberLoans(member);
+        });
+      }, "primary");
+
+      content.append(
+        el(
+          "div",
+          { class: "row" },
+          el(
+            "div",
+            { class: "row-main" },
+            el("strong", {}, title),
+            el("p", { class: "meta" }, `À rendre avant le ${formatDate(loan.dueAt)}`)
+          ),
+          returnButton
+        )
+      );
+    }
+
+    content.append(
+      button("Fermer", () => {
+        dialog.close();
+        dialog.remove();
+      })
+    );
+
+    dialog.append(content);
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+}
+
 async function deleteMember(member) {
   const confirmed = confirm(
     `Voulez-vous vraiment supprimer « ${member.name} » ?`
@@ -219,8 +284,11 @@ function memberRow(member) {
     button("Modifier", () => openEditMemberDialog(member))
   );
   actions.append(
-  button("Supprimer", () => deleteMember(member))
-);
+    button("Supprimer", () => deleteMember(member))
+  );
+  actions.append(
+    button("Mes emprunts", () => showMemberLoans(member))
+  );
   return el(
     "li",
     { class: "row" },
@@ -267,3 +335,22 @@ bindSubmit(memberDialog, memberForm, (data) => {
 });
 
 refresh();
+$("#apply-filters").addEventListener("click", () => {
+  const filters = {
+    q: $("#game-search").value.trim(),
+    players: $("#filter-players").value,
+    maxDuration: $("#filter-duration").value,
+    available: $("#filter-availability").value,
+  };
+
+  run(() => loadGames(filters));
+});
+
+$("#reset-filters").addEventListener("click", () => {
+  $("#game-search").value = "";
+  $("#filter-players").value = "";
+  $("#filter-duration").value = "";
+  $("#filter-availability").value = "";
+
+  run(() => loadGames());
+});

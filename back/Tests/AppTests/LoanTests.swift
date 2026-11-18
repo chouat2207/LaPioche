@@ -29,8 +29,6 @@ final class LoanTests: XCTestCase {
             }
         }
     }
-//"Optional(13)") is not equal to ("Optional(14)")
-
     func testDueDateIsFourteenDaysAfterBorrowDate() async throws {
         try await withApp { app in
             let game = try await createGame(app)
@@ -61,8 +59,6 @@ final class LoanTests: XCTestCase {
             })
         }
     }
-//("201 Created") is not equal to ("409 Conflict")
-
     func testBorrowingAGameAlreadyOnLoanReturnsConflict() async throws {
         try await withApp { app in
             let game = try await createGame(app)
@@ -148,8 +144,6 @@ final class LoanTests: XCTestCase {
             }
         }
     }
-    
-    
     func testReturnLoanReturnsUpdatedLoan() async throws {
         try await withApp { app in
             let game = try await createGame(app)

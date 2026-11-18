@@ -12,7 +12,6 @@ struct LoanController: RouteCollection {
     @Sendable
     func create(req: Request) async throws -> Response {
         let dto = try req.content.decode(CreateLoanDTO.self)
-
         guard let game = try await Game.find(dto.gameID, on: req.db) else {
             throw Abort(.notFound, reason: "Game not found")
         }
@@ -58,14 +57,12 @@ struct LoanController: RouteCollection {
     
     @Sendable
     func overdue(req: Request) async throws -> [LoanDTO] {
-        // Récupérer la date actuelle
         let now = Date()
         // Chercher les emprunts non rendus dont la date limite est dépassée
         let loans = try await Loan.query(on: req.db)
             .filter(\.$returnedAt == nil)
             .filter(\.$dueAt < now)
             .all()
-        // Retourner les emprunts sous forme de DTO
         return loans.map { $0.toDTO() }
     }
 

@@ -47,16 +47,12 @@ struct MemberController: RouteCollection {
     
     @Sendable
     func update(req: Request) async throws -> MemberDTO {
-
-        //Vérifier les données reçues
         try CreateMemberDTO.validate(content: req)
         let dto = try req.content.decode(CreateMemberDTO.self)
 
-        //Vérifier l'identifiant
         guard let memberID = req.parameters.get("memberID", as: UUID.self) else {
             throw Abort(.badRequest, reason: "Invalid member id")
         }
-        //Vérifier que le membre existe
         guard let member = try await Member.find(memberID, on: req.db) else {
             throw Abort(.notFound, reason: "Member not found")
         }
@@ -72,7 +68,6 @@ struct MemberController: RouteCollection {
         member.email = dto.email
         //Enregistrer les modifications
         try await member.save(on: req.db)
-        //Retourner le membre modifié
         return member.toDTO()
     }
     @Sendable
@@ -81,7 +76,6 @@ struct MemberController: RouteCollection {
         guard let memberID = req.parameters.get("memberID", as: UUID.self) else {
             throw Abort(.badRequest, reason: "Invalid member id")
         }
-        //Vérifier que le membre existe
         guard let member = try await Member.find(memberID, on: req.db) else {
             throw Abort(.notFound, reason: "Member not found")
         }
@@ -93,19 +87,17 @@ struct MemberController: RouteCollection {
         guard loanCount == 0 else {
             throw Abort(.conflict, reason: "Cannot delete a member with loan history")
         }
-        //Supprimer le membre
         try await member.delete(on: req.db)
-        //Retourner HTTP 204
         return .noContent
     }
     @Sendable
     func loans(req: Request) async throws -> [LoanDTO] {
         guard let memberID = req.parameters.get("memberID", as: UUID.self) else {
-            throw Abort(.badRequest, reason: "Invalid member id")
-        }
+            throw Abort(.badRequest, reason: "Invalid member id")}
+        
         guard try await Member.find(memberID, on: req.db) != nil else {
-            throw Abort(.notFound, reason: "Member not found")
-        }
+            throw Abort(.notFound, reason: "Member not found")}
+        
         let loans = try await Loan.query(on: req.db)
             .filter(\.$member.$id == memberID)
             .all()
