@@ -199,14 +199,28 @@ async function loadMembers() {
   $("#members-empty").hidden = members.length > 0;
   $("#members-list").replaceChildren(...members.map(memberRow));
 }
+async function deleteMember(member) {
+  const confirmed = confirm(
+    `Voulez-vous vraiment supprimer « ${member.name} » ?`
+  );
+
+  if (!confirmed) return;
+
+  await run(async () => {
+    await api.deleteMember(member.id);
+    toast(`L'adhérent « ${member.name} » a été supprimé.`);
+    await loadMembers();
+  });
+}
 
 function memberRow(member) {
   const actions = el("div", { class: "actions" });
-
   actions.append(
     button("Modifier", () => openEditMemberDialog(member))
   );
-
+  actions.append(
+  button("Supprimer", () => deleteMember(member))
+);
   return el(
     "li",
     { class: "row" },
