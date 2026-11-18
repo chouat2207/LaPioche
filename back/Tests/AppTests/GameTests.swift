@@ -292,4 +292,66 @@ final class GameTests: XCTestCase {
             }
         }
     }
+    func testFilterBorrowedGames() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let member = try await createMember(app)
+
+            let loan = Loan(
+                gameID: try XCTUnwrap(game.id),
+                memberID: try XCTUnwrap(member.id),
+                borrowedAt: Date(),
+                dueAt: try Loan.dueDate(from: Date())
+            )
+            try await loan.save(on: app.db)
+
+            try await app.test(.GET, "games?available=false") { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                XCTAssertEqual(games.count, 1)
+                XCTAssertFalse(games[0].isAvailable)
+            }
+        }
+    }
+    func testFilterAvailableGames() async throws {
+        try await withApp { app in
+            _ = try await createGame(app)
+
+            try await app.test(.GET, "games?available=true") { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                XCTAssertEqual(games.count, 1)
+                XCTAssertTrue(games[0].isAvailable)
+            }
+        }
+    }
+    func testFilterGamesWithInvalidAvailabilityReturnsBadRequest() async throws {
+        try await withApp { app in
+            try await app.test(.GET, "games?available=maybe") { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        }
+    }
+    func testSearchGamesWithAvailabilityFilter() async throws {
+        try await withApp { app in
+            _ = try await createGame(app, title: "Catan")
+
+            try await app.test(
+                .GET,
+                "games?q=cat&players=4&maxDuration=60&available=true"
+            ) { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                XCTAssertEqual(games.count, 1)
+                XCTAssertTrue(games[0].title.localizedCaseInsensitiveContains("cat"))
+                XCTAssertTrue(games[0].isAvailable)
+            }
+        }
+    }
 }
