@@ -315,4 +315,43 @@ final class GameTests: XCTestCase {
             }
         }
     }
+    func testFilterAvailableGames() async throws {
+        try await withApp { app in
+            _ = try await createGame(app)
+
+            try await app.test(.GET, "games?available=true") { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                XCTAssertEqual(games.count, 1)
+                XCTAssertTrue(games[0].isAvailable)
+            }
+        }
+    }
+    func testFilterGamesWithInvalidAvailabilityReturnsBadRequest() async throws {
+        try await withApp { app in
+            try await app.test(.GET, "games?available=maybe") { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            }
+        }
+    }
+    func testSearchGamesWithAvailabilityFilter() async throws {
+        try await withApp { app in
+            _ = try await createGame(app, title: "Catan")
+
+            try await app.test(
+                .GET,
+                "games?q=cat&players=4&maxDuration=60&available=true"
+            ) { res async throws in
+                XCTAssertEqual(res.status, .ok)
+
+                let games = try res.content.decode([GameDTO].self)
+
+                XCTAssertEqual(games.count, 1)
+                XCTAssertTrue(games[0].title.localizedCaseInsensitiveContains("cat"))
+                XCTAssertTrue(games[0].isAvailable)
+            }
+        }
+    }
 }
