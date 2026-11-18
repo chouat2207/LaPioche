@@ -102,11 +102,13 @@ function gameCard(game) {
     ? el("span", { class: "badge ok" }, "Disponible")
     : el("span", { class: "badge busy" }, "Emprunté");
 
-  const actions = el("div", { class: "actions" });
-  if (game.isAvailable) {
-    actions.append(button("Emprunter", () => openBorrowDialog(game), "primary"));
-  }
+ const actions = el("div", { class: "actions" });
 
+actions.append(button("Modifier", () => openEditGameDialog(game)));
+
+if (game.isAvailable) {
+  actions.append(button("Emprunter", () => openBorrowDialog(game), "primary"));
+}
   return el(
     "li",
     { class: "card" },
@@ -118,7 +120,17 @@ function gameCard(game) {
 
 const gameDialog = $("#game-dialog");
 const gameForm = $("#game-form");
+let editingGame = null;
+async function openEditGameDialog(game) {
+  editingGame = game;
+  gameForm.elements.title.value = game.title;
+  gameForm.elements.minPlayers.value = game.minPlayers;
+  gameForm.elements.maxPlayers.value = game.maxPlayers;
+  gameForm.elements.durationMinutes.value = game.durationMinutes;
 
+  showFormError(gameDialog, null);
+  gameDialog.showModal();
+}
 $("#add-game").addEventListener("click", () => {
   gameForm.reset();
   showFormError(gameDialog, null);
