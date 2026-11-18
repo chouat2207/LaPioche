@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>La Pioche - Ludothèque</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <header class="topbar">
     <h1>La Pioche</h1>
@@ -22,7 +24,25 @@
         <h2>Jeux</h2>
         <button type="button" id="add-game" class="primary">Ajouter un jeu</button>
       </div>
-      <p id="games-empty" class="empty" hidden>La ludothèque ne contient aucun jeu pour le moment. Cliquez sur « Ajouter un jeu » pour créer le premier.</p>
+
+      <div class="filters">
+        <input type="search" id="game-search" placeholder="Rechercher un jeu par son titre...">
+
+        <input type="number" id="filter-players" min="1" placeholder="Nombre de joueurs">
+
+        <input type="number" id="filter-duration" min="1" placeholder="Durée maximale (minutes)">
+
+        <select id="filter-availability">
+          <option value="">Toutes les disponibilités</option>
+          <option value="true">Disponible</option>
+          <option value="false">Emprunté</option>
+        </select>
+
+        <button type="button" id="apply-filters">Rechercher</button>
+        <button type="button" id="reset-filters">Réinitialiser</button>
+      </div>
+      <p id="games-empty" class="empty" hidden>La ludothèque ne contient aucun jeu pour le moment. Cliquez sur « Ajouter
+        un jeu » pour créer le premier.</p>
       <ul id="games-list" class="cards"></ul>
     </section>
 
@@ -31,7 +51,8 @@
         <h2>Adhérent·es</h2>
         <button type="button" id="add-member" class="primary">Ajouter un·e adhérent·e</button>
       </div>
-      <p id="members-empty" class="empty" hidden>Aucun·e adhérent·e pour le moment. Cliquez sur « Ajouter un·e adhérent·e » pour créer le premier ou la première.</p>
+      <p id="members-empty" class="empty" hidden>Aucun·e adhérent·e pour le moment. Cliquez sur « Ajouter un·e
+        adhérent·e » pour créer le premier ou la première.</p>
       <ul id="members-list" class="rows"></ul>
     </section>
   </main>
@@ -85,4 +106,5 @@
 
   <script type="module" src="app.js"></script>
 </body>
+
 </html>

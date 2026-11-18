@@ -107,12 +107,32 @@ async function request(method, path, body) {
 }
 
 export const api = {
-  listGames: () => request("GET", "/games"),
-  createGame: (game) => request("POST", "/games", game),
+  listGames: (filters = {}) => {
+    const params = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== "" && value !== null && value !== undefined) {
+        params.set(key, value);
+      }
+    }
+
+    const query = params.toString();
+
+    return request("GET", `/games${query ? `?${query}` : ""}`);
+  }, createGame: (game) => request("POST", "/games", game),
   updateGame: (gameID, game) =>
     request("PUT", `/games/${gameID}`, game),
+  deleteGame: (gameID) =>
+    request("DELETE", `/games/${gameID}`),
   listMembers: () => request("GET", "/members"),
+  listMemberLoans: (memberID) =>
+    request("GET", `/members/${memberID}/loans`),
   createMember: (member) => request("POST", "/members", member),
-
+  updateMember: (memberID, member) =>
+    request("PUT", `/members/${memberID}`, member),
+  deleteMember: (memberID) =>
+    request("DELETE", `/members/${memberID}`),
   borrow: (gameID, memberID) => request("POST", "/loans", { gameID, memberID }),
+  returnLoan: (loanID) =>
+    request("POST", `/loans/${loanID}/return`),
 };

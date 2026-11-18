@@ -1,6 +1,5 @@
 @testable import App
 import XCTVapor
-//("200 OK") is not equal to ("201 Created")
 final class GameTests: XCTestCase {
     func testCreateGameReturnsCreated() async throws {
         try await withApp { app in
@@ -345,9 +344,7 @@ final class GameTests: XCTestCase {
                 "games?q=cat&players=4&maxDuration=60&available=true"
             ) { res async throws in
                 XCTAssertEqual(res.status, .ok)
-
                 let games = try res.content.decode([GameDTO].self)
-
                 XCTAssertEqual(games.count, 1)
                 XCTAssertTrue(games[0].title.localizedCaseInsensitiveContains("cat"))
                 XCTAssertTrue(games[0].isAvailable)

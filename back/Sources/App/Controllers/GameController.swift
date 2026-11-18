@@ -18,34 +18,23 @@ struct GameController: RouteCollection {
         games.put(":gameID", use: update)
         games.delete(":gameID", use: delete)
     }
-
-//    @Sendable
-//    func index(req: Request) async throws -> [GameDTO] {
-//        let games = try await Game.query(on: req.db)
-//            .with(\.$loans)
-//            .all()
-//        return games.map { $0.toDTO() }
-//    }
+    
     @Sendable
     func index(req: Request) async throws -> [GameDTO] {
-
         let filters = try req.query.decode(GameSearchQuery.self)
-
         // Vérifier que les nombres sont positifs
         if let players = filters.players, players <= 0 {
-            throw Abort(.badRequest, reason: "Players must be a positive integer")
-        }
-
+            throw Abort(.badRequest, reason: "Players must be a positive integer")}
+        
         if let maxDuration = filters.maxDuration, maxDuration <= 0 {
             throw Abort(.badRequest, reason: "Max duration must be a positive integer")
         }
         let availability: Bool?
-
+        
         if let value = filters.available {
             guard value == "true" || value == "false" else {
                 throw Abort(.badRequest, reason: "Available must be true or false")
             }
-
             availability = value == "true"
         } else {
             availability = nil
@@ -53,21 +42,19 @@ struct GameController: RouteCollection {
         // Construire la recherche
         let gamesQuery = Game.query(on: req.db)
             .with(\.$loans)
-
+        
         if let players = filters.players {
             gamesQuery
                 .filter(\.$minPlayers <= players)
                 .filter(\.$maxPlayers >= players)
         }
-
+        
         if let maxDuration = filters.maxDuration {
-            gamesQuery.filter(\.$durationMinutes <= maxDuration)
-        }
-
+            gamesQuery.filter(\.$durationMinutes <= maxDuration)}
+        
         let games = try await gamesQuery.all()
-
-        let filteredGames = games.filter { game in
-
+        
+    let filteredGames = games.filter { game in
             let matchesTitle: Bool
             if let search = filters.q?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -76,17 +63,17 @@ struct GameController: RouteCollection {
             } else {
                 matchesTitle = true
             }
-
+            
             let matchesAvailability: Bool
             if let availability {
                 matchesAvailability = game.isAvailable == availability
             } else {
                 matchesAvailability = true
             }
-
+            
             return matchesTitle && matchesAvailability
         }
-
+        
         return filteredGames.map { $0.toDTO() }
     }
     @Sendable
@@ -94,21 +81,20 @@ struct GameController: RouteCollection {
         try CreateGameDTO.validate(content: req)
         let dto = try req.content.decode(CreateGameDTO.self)
         try dto.ensureConsistentPlayerCount()
-
+        
         let game = dto.toModel()
         try await game.save(on: req.db)
         let response =  try await game.toDTO().encodeResponse(for: req)
         response.status = .created
         return response
     }
-
+    
     @Sendable
     func update(req: Request) async throws -> GameDTO {
         try CreateGameDTO.validate(content: req)
         let dto = try req.content.decode(CreateGameDTO.self)
         try dto.ensureConsistentPlayerCount()
         let game = try await findGame(req)
-        
         //Modifier les informations du jeu
         game.title = dto.title
         game.minPlayers = dto.minPlayers
@@ -117,13 +103,13 @@ struct GameController: RouteCollection {
         try await game.save(on: req.db)
         return try await findGame(req).toDTO()
     }
-
+    
     
     @Sendable
     func show(req: Request) async throws -> GameDTO {
         try await findGame(req).toDTO()
     }
-
+    
     private func findGame(_ req: Request) async throws -> Game {
         guard let gameID = req.parameters.get("gameID", as: UUID.self) else {
             throw Abort(.badRequest, reason: "Invalid game id")
@@ -132,7 +118,7 @@ struct GameController: RouteCollection {
             .filter(\.$id == gameID)
             .with(\.$loans)
             .first()
-        else {
+                else {
             throw Abort(.notFound, reason: "Game not found")
         }
         return game
