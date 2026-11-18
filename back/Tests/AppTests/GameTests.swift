@@ -303,7 +303,6 @@ final class GameTests: XCTestCase {
                 borrowedAt: Date(),
                 dueAt: try Loan.dueDate(from: Date())
             )
-
             try await loan.save(on: app.db)
 
             try await app.test(.GET, "games?available=false") { res async throws in
