@@ -94,6 +94,17 @@ async function loadGames() {
   $("#games-empty").hidden = games.length > 0;
   $("#games-list").replaceChildren(...games.map(gameCard));
 }
+async function deleteGame(game) {
+  const confirmed = confirm(`Voulez-vous vraiment supprimer « ${game.title} » ?`);
+
+  if (!confirmed) return;
+
+  await run(async () => {
+    await api.deleteGame(game.id);
+    toast(`Le jeu « ${game.title} » a été supprimé.`);
+    await loadGames();
+  });
+}
 
 function gameCard(game) {
   const players =
@@ -105,7 +116,7 @@ function gameCard(game) {
  const actions = el("div", { class: "actions" });
 
 actions.append(button("Modifier", () => openEditGameDialog(game)));
-
+actions.append(button("Supprimer", () => deleteGame(game)));
 if (game.isAvailable) {
   actions.append(button("Emprunter", () => openBorrowDialog(game), "primary"));
 }
@@ -190,24 +201,55 @@ async function loadMembers() {
 }
 
 function memberRow(member) {
+  const actions = el("div", { class: "actions" });
+
+  actions.append(
+    button("Modifier", () => openEditMemberDialog(member))
+  );
+
   return el(
     "li",
     { class: "row" },
-    el("div", { class: "row-main" }, el("p", {}, el("strong", {}, member.name)), el("p", { class: "meta" }, member.email)),
+    el(
+      "div",
+      { class: "row-main" },
+      el("p", {}, el("strong", {}, member.name)),
+      el("p", { class: "meta" }, member.email)
+    ),
+    actions
   );
 }
 
 const memberDialog = $("#member-dialog");
 const memberForm = $("#member-form");
+let editingMember = null;
 
+function openEditMemberDialog(member) {
+  editingMember = member;
+
+  memberForm.elements.name.value = member.name;
+  memberForm.elements.email.value = member.email;
+
+  showFormError(memberDialog, null);
+  memberDialog.showModal();
+}
 $("#add-member").addEventListener("click", () => {
   memberForm.reset();
+  editingMember = null;
   showFormError(memberDialog, null);
   memberDialog.showModal();
 });
+bindSubmit(memberDialog, memberForm, (data) => {
+  const member = {
+    name: data.get("name").trim(),
+    email: data.get("email").trim(),
+  };
 
-bindSubmit(memberDialog, memberForm, (data) =>
-  api.createMember({ name: data.get("name").trim(), email: data.get("email").trim() }),
-);
+  if (editingMember) {
+    return api.updateMember(editingMember.id, member);
+  }
+
+  return api.createMember(member);
+});
 
 refresh();

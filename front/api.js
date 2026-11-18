@@ -111,8 +111,11 @@ export const api = {
   createGame: (game) => request("POST", "/games", game),
   updateGame: (gameID, game) =>
     request("PUT", `/games/${gameID}`, game),
+  deleteGame: (gameID) =>
+  request("DELETE", `/games/${gameID}`),
   listMembers: () => request("GET", "/members"),
   createMember: (member) => request("POST", "/members", member),
-
+updateMember: (memberID, member) =>
+  request("PUT", `/members/${memberID}`, member),
   borrow: (gameID, memberID) => request("POST", "/loans", { gameID, memberID }),
 };
