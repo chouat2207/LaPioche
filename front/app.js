@@ -133,18 +133,25 @@ async function openEditGameDialog(game) {
 }
 $("#add-game").addEventListener("click", () => {
   gameForm.reset();
+  editingGame = null;
   showFormError(gameDialog, null);
   gameDialog.showModal();
 });
 
-bindSubmit(gameDialog, gameForm, (data) =>
-  api.createGame({
+bindSubmit(gameDialog, gameForm, (data) => {
+  const game = {
     title: data.get("title").trim(),
     minPlayers: Number(data.get("minPlayers")),
     maxPlayers: Number(data.get("maxPlayers")),
     durationMinutes: Number(data.get("durationMinutes")),
-  }),
-);
+  };
+
+  if (editingGame) {
+    return api.updateGame(editingGame.id, game);
+  }
+
+  return api.createGame(game);
+});
 
 // --- Emprunts --------------------------------------------------------------
 
